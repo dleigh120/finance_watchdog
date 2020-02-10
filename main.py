@@ -1,7 +1,9 @@
+
+
 # Install custom packages
-!pip install yfinance
-!pip install xlsxwriter
-!pip install sendgrid
+#!pip install yfinance
+#!pip install xlsxwriter
+#!pip install sendgrid
 
 #!pip freeze > requirements.txt
 #!cat requirements.txt

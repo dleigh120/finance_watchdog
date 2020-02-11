@@ -17,11 +17,11 @@ tickers = ['BP', 'MAR', 'VAC', 'RIO', 'RWA', 'BARC', 'DBRC', 'EWW', 'IFFF', 'IEU
 fromz = 'from@gmail.com'
 to = 'to@gmail.com'
 sendgrid_api_key = 'XXXXXX'
+file_storage_loc = ''
 
 start = time.time()
 
-# Create current date based on DoW - no price info over weekend & 1 day data latency
-# Note: 0 = Sunday; 6 = Saturday
+# Find dates with available close_price based on DOW- no price info over weekend & 1 day data latency
 if pd.to_datetime('today').strftime('%w') == '1': 
   current = (pd.to_datetime('today') - pd.Timedelta(days=3))
 elif pd.to_datetime('today').strftime('%w') == '0':
@@ -29,23 +29,24 @@ elif pd.to_datetime('today').strftime('%w') == '0':
 else: 
   current = (pd.to_datetime('today') - pd.Timedelta(days=1))
 
-# Create benchmark dates based on current and avoid weekends
 dates_dict = {'three_yrs': current - pd.Timedelta(days=1080), 'one_year': current - pd.Timedelta(days=365), 'three_months': current - pd.Timedelta(days=90), 'one_month': current - pd.Timedelta(days=30), 'one_week': current - pd.Timedelta(days=7), 'three_days': current - pd.Timedelta(days=3), 'one_day': current - pd.Timedelta(days=1)}
+
 dates_dict_cleaned = {}
 
 for k, v in dates_dict.items(): 
   if dates_dict[k].strftime('%w') == '1': 
-    dates_dict_cleaned[k] = (dates_dict[k] - pd.Timedelta(days=3)).normalize()
+    dates_dict_cleaned[k] = (dates_dict[k] - pd.Timedelta(days=3))
   elif dates_dict[k].strftime('%w') == '0': 
-    dates_dict_cleaned[k] = (dates_dict[k] - pd.Timedelta(days=2)).normalize()
+    dates_dict_cleaned[k] = (dates_dict[k] - pd.Timedelta(days=2))
   elif dates_dict[k].strftime('%w') == '6': 
-    dates_dict_cleaned[k] = (dates_dict[k] - pd.Timedelta(days=1)).normalize()
+    dates_dict_cleaned[k] = (dates_dict[k] - pd.Timedelta(days=1))
   else: 
-    dates_dict_cleaned[k] = dates_dict[k].normalize()
+    dates_dict_cleaned[k] = dates_dict[k]
+  dates_dict_cleaned[k] = dates_dict_cleaned[k].normalize()
 
 dates_dict_cleaned['current'] = current.normalize()
 
-# Loop through ticker list and add ticker data as dataframe to dictionary (df_dict)
+# Loop through ticker list and add ticker data as dataframe to dictionary
 df_dict = {}
 error_list_df = pd.DataFrame(columns=['stock', 'error_type', 'value'])
 
@@ -54,30 +55,23 @@ for i in tickers:
   df = pd.DataFrame(stock.history(period='max'))
   df = df.reset_index()
   if len(df) == 0:
-    print("error_delisted", i)
+    print('delisted_error: ', i)
     error_list_df = error_list_df.append({'stock': i, 'error_type': 'delisted', 'value': 'NA'},ignore_index=True)    
   elif max(pd.to_datetime(df['Date'],  infer_datetime_format=True)) < dates_dict_cleaned['current']:
-    print('date_error', i )
+    print('date_error: ', i )
     error_list_df = error_list_df.append({'stock': i, 'error_type': 'max_date', 'value': max(pd.to_datetime(df['Date'],  infer_datetime_format=True))},ignore_index=True)
   else: 
     df = df.reset_index()
     df['Date'] = pd.to_datetime(df['Date'],  infer_datetime_format=True)
-    df.sort_values(by='Date', ascending=False)
+    df = df.sort_values(by='Date', ascending=False)
     df_dict[i] = df
 
-#Metric definitions
-# Create empty Stock Summary dataframe with aggregate metrics
-# Iterate through df_dict dictionary to compute metrics based on defined dates
-
-# RESET VARS AND RUN WITHOUT THIS? 
-#df_agg = pd.DataFrame(columns=['stock', '3_year_return_%', '3_month_return_%', 'monitor_alert', 'action_alert'])
-
+# Define stock variables
 df_alerts = pd.DataFrame()
 df_agg = pd.DataFrame()
+err_val = '-'
 
-for k,v in df_dict.items():
-  err_val = '-'
-
+for k,v in df_dict.items():  
   try:
     max_date = max(df_dict[k]['Date'])      
   except:
@@ -138,7 +132,7 @@ for k,v in df_dict.items():
   except:  
     close_three_years = err_val
 
-# METRICS
+# Define stock metrics
   try:
     one_day_return = round((close_current - close_one_day)/close_one_day*100,2)
   except: 
@@ -179,9 +173,7 @@ for k,v in df_dict.items():
   except: 
     month_year_ratio = err_val
 
-# TESTS
-# types = new heights, rapid change, trend
-  
+# Run tests
   ret_vals=[5,10,15,20,25]
 
   test_dict = {'new_max':[close_current >  max_close, 'current_close greater than max_close', 'highs_lows', close_current],
@@ -192,8 +184,6 @@ for k,v in df_dict.items():
                'month_%':[abs(month_return) > ret_vals[3], 'month_return_%% greater than %s' % (ret_vals[3]),   'rapid_change', month_return],
                '3_month_%':[abs(three_month_return) > ret_vals[4], '3_month_return_%% greater than %s' % (ret_vals[4]),   'rapid_change', three_month_return]
                 }
-
- #FIX EXCEPTION ERROR FOR ABS W/STRING - move outside loop?
 
   for key in test_dict.keys():
     try:
@@ -209,7 +199,7 @@ for k,v in df_dict.items():
     if len(df_alerts['alert'][(df_alerts['stock']==k)]) > 0:
       monitor_alert = pd.Series(df_alerts['description'][(df_alerts['stock']==k)]).str.cat(sep='; ')      
     else: 
-      monitor_alert = 'NA'
+      pass
   except:
     pass    
     
@@ -218,16 +208,12 @@ for k,v in df_dict.items():
 # Tidy DFs agg
 df_agg = df_agg.sort_values(by=['monitor_alert'], ascending=True)
 df_agg2 = df_agg[["stock","monitor_alert","close_price","max_close","min_close","1_day_return_%","3_day_return_%","7_day_return_%","month_return_%","3_month_return_%","1_year_return","3_year_return_%","min_date",]]
-
 error_list_df = error_list_df.sort_values(by=['error_type','stock'])
 
 try:
   df_alerts = df_alerts[["stock","alert","description","value"]]
 except: 
   print('df_alerts does not exist')
-
-from google.colab import drive
-drive.mount('/content/gdrive')
 
 # Create Excel file
 file_name = 'Daily_Stock_Summary_'+ pd.to_datetime('today').strftime('%Y%m%d')  +'.xlsx'
@@ -245,7 +231,7 @@ error_list_df.to_excel(writer, sheet_name=str('Stock Errors'), index=False)
 df_alerts.to_excel(writer, sheet_name=str('Alarm Triggers'), index=False)
 writer.save()
 
-#define email variables
+#Create email variables
 stock_num = df_agg2.shape[0]  
 row_num =  (stock_num * 25 * 365)+241
 run_time = round(time.time() - start, 2)

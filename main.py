@@ -1,4 +1,5 @@
 # // Finance.watchdog: Script is intended to be scheduled on a daily basis
+# // Fix file_name / file_location; fix indexing issues
 
 # Package management
 import yfinance as yf
@@ -30,8 +31,7 @@ else:
   current = (pd.to_datetime('today') - pd.Timedelta(days=1))
 
 dates_dict = {'three_yrs': current - pd.Timedelta(days=1080), 'one_year': current - pd.Timedelta(days=365), 'three_months': current - pd.Timedelta(days=90), 'one_month': current - pd.Timedelta(days=30), 'one_week': current - pd.Timedelta(days=7), 'three_days': current - pd.Timedelta(days=3), 'one_day': current - pd.Timedelta(days=1)}
-
-dates_dict_cleaned = {}
+dates_dict_cleaned = {'current': current.normalize()}
 
 for k, v in dates_dict.items(): 
   if dates_dict[k].strftime('%w') == '1': 
@@ -43,8 +43,6 @@ for k, v in dates_dict.items():
   else: 
     dates_dict_cleaned[k] = dates_dict[k]
   dates_dict_cleaned[k] = dates_dict_cleaned[k].normalize()
-
-dates_dict_cleaned['current'] = current.normalize()
 
 # Loop through ticker list and add ticker data as dataframe to dictionary
 df_dict = {}
@@ -325,15 +323,15 @@ alert_message = Mail(
     </table>
     """ % (stocks, stock_num, alert_num, row_num, run_time))
 
-# Run test 
+# Determine output - alert or summary
 if alert_num > 0: 
   message = alert_message
-  print('is_alert')
+  print('Alert notification')
 else: 
   message = daily_message  
-  print('is_daily')
+  print('Daily summary')
 
-# file encoding & attachment
+# Excel encoding & attachment
 with open('/content/'+file_name, 'rb') as f:
   data = f.read()
   f.close()
@@ -348,11 +346,10 @@ attachedFile = Attachment(
 
 message.attachment = attachedFile
 
-# send email
+# Send message
 try:
     sg = SendGridAPIClient(sendgrid_api_key)
     response = sg.send(message)
-    print(response.status_code)    
-except Exception as e:
-    print('email cant send')
-    print(e)
+    print('email success: ', response.status_code)    
+except Exception as e:    
+    print('email failure:', e)

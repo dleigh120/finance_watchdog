@@ -1,14 +1,6 @@
-# formatting patch
+# // Finance.watchdog: Script is intended to be scheduled on a daily basis
 
-# Install custom packages
-#!pip install yfinance
-#!pip install xlsxwriter
-#!pip install sendgrid
-
-#!pip freeze > requirements.txt
-#!cat requirements.txt
-
-# Load packages
+# Package management
 import yfinance as yf
 import pandas as pd 
 import xlsxwriter
@@ -20,11 +12,16 @@ from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 from sendgrid.helpers.mail import (Mail, Attachment, FileContent, FileName, FileType, Disposition)
 
+# Variables
+tickers = ['BP', 'MAR', 'VAC', 'RIO', 'RWA', 'BARC', 'DBRC', 'EWW', 'IFFF', 'IEUX', 'BOY', 'CME', 'FEVR', 'EMG', 'RELX', 'TCAP', 'REC', 'IGP', 'TRMR', 'RMG']
+fromz = 'from@gmail.com'
+to = 'to@gmail.com'
+sendgrid_api_key = 'XXXXXX'
+
 start = time.time()
 
 # Create current date based on DoW - no price info over weekend & 1 day data latency
 # Note: 0 = Sunday; 6 = Saturday
-
 if pd.to_datetime('today').strftime('%w') == '1': 
   current = (pd.to_datetime('today') - pd.Timedelta(days=3))
 elif pd.to_datetime('today').strftime('%w') == '0':
@@ -47,9 +44,6 @@ for k, v in dates_dict.items():
     dates_dict_cleaned[k] = dates_dict[k].normalize()
 
 dates_dict_cleaned['current'] = current.normalize()
-
-# List structure of stock tickers to query
-tickers = ['BP', 'MAR', 'VAC', 'RIO', 'RWA', 'BARC', 'DBRC', 'EWW', 'IFFF', 'IEUX', 'BOY', 'CME', 'FEVR', 'EMG', 'RELX', 'TCAP', 'REC', 'IGP', 'TRMR', 'RMG']
 
 # Loop through ticker list and add ticker data as dataframe to dictionary (df_dict)
 df_dict = {}
@@ -84,7 +78,6 @@ df_agg = pd.DataFrame()
 for k,v in df_dict.items():
   err_val = '-'
 
-# VARIABLES
   try:
     max_date = max(df_dict[k]['Date'])      
   except:
@@ -263,10 +256,6 @@ try:
 except:
   stocks = 'error'
 
-#email config
-fromz = 'from@gmail.com'
-to = 'to@gmail.com'
-
 daily_message = Mail(
     from_email= fromz,
     to_emails= to,
@@ -375,7 +364,7 @@ message.attachment = attachedFile
 
 # send email
 try:
-    sg = SendGridAPIClient('XXXXXXXXX')
+    sg = SendGridAPIClient(sendgrid_api_key)
     response = sg.send(message)
     print(response.status_code)    
 except Exception as e:

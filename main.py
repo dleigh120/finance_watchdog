@@ -17,7 +17,7 @@ start = time.time()
 # Inputs 
 tickers = ['MSFT', 'AAPL','GOOGL', 'BRK.B','JPM', 'V']
 enable_report_functionality = 1 #set to 1 to enable Excel report build
-enable_email_functionality = 1 #set to 1 to enable Email summary/notification
+enable_email_functionality = 0 #set to 1 to enable Email summary/notification (requires Sendgrid API key, freely available)
 
 storage_loc = ''
 from_email = 'your_email@mail.com'
@@ -215,7 +215,20 @@ for k,v in df_dict.items():
   except:
     pass    
 
-  df_agg = df_agg.append({'stock' : k, 'close_price': close_current, 'max_close': max_close, 'min_close': min_close, '1_day_return_%': one_day_return, '3_day_return_%': three_day_return, '7_day_return_%': week_return, 'month_return_%': month_return, '3_month_return_%': three_month_return,'1_year_return': year_return, '3_year_return_%' : three_year_return, '3_month_return_%': three_month_return, 'monitor_alert': monitor_alert, 'max_date': max_date, 'min_date': min_date},ignore_index=True)
+  df_agg = df_agg.append({'stock' : k, 
+                          'close_price': close_current, 
+                          'max_close': max_close, 
+                          'min_close': min_close, 
+                          '1_day_return_%': one_day_return, 
+                          '3_day_return_%': three_day_return, 
+                          '7_day_return_%': week_return, 
+                          'month_return_%': month_return, 
+                          '3_month_return_%': three_month_return,
+                          '1_year_return': year_return, 
+                          '3_year_return_%' : three_year_return, 
+                          'monitor_alert': monitor_alert, 
+                          'max_date': max_date, 
+                          'min_date': min_date},ignore_index=True)
 
 # Tidy DFs 
 df_agg = df_agg.sort_values(by=['monitor_alert'], ascending=True)
@@ -251,7 +264,7 @@ if enable_email_functionality == 1:
   run_time = round(time.time() - start, 2)
   alert_num = len(df_alerts) 
   rule_list = 'https://docs.google.com/spreadsheets/d/1Ys-BSHbSgNjgGtaE--FLMDeuYelMdZfsVI1dJXufl9A/edit?usp=sharing'
-  source_code = 'https://colab.research.google.com/drive/1pMUaGsLWICsshSuV-R63Ng9xWuQXq4kV'
+  source_code = 'https://github.com/dleigh120/finance_watchdog'
 
   try: 
     stocks = str(df_alerts['stock'].unique()).replace(' ',',')[1:-1]
